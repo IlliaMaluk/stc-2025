@@ -1,4 +1,4 @@
-name: Build and Release Portable EXE
+name: Release Windows Builds
 
 on:
   push:
@@ -9,11 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-windows:
     runs-on: windows-latest
     env:
       ELECTRON_VERSION: "38.3.0"
-
     steps:
       - uses: actions/checkout@v4
 
@@ -41,22 +40,27 @@ jobs:
       - name: Electron rebuild (better-sqlite3)
         run: npx electron-rebuild -f -w better-sqlite3 -v $env:ELECTRON_VERSION
 
-      - name: Build portable exe
-        run: npm run build:portable
+      - name: Prepare application bundles
+        run: npm run build:prepare
 
-      - name: Upload artifact
+      - name: Build Windows installers
+        run: npx electron-builder --win nsis portable
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: portable-exe
-          path: dist/STC*.exe
+          name: windows-builds
+          path: |
+            dist/STC-Toolkit-*win-*-*.exe
           if-no-files-found: error
 
-      - name: Create Release
+      - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          files: dist/STC*.exe
+          files: |
+            dist/STC-Toolkit-*win-*-*.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

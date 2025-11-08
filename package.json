@@ -14,9 +14,16 @@
     "build:main": "tsc && npm run copy:preload",
     "build": "run-s build:main build:renderer build:electron",
     "clean:dist": "rimraf dist",
-    "prebuild:portable": "run-s clean:dist build:main build:renderer",
+    "build:prepare": "run-s clean:dist build:main build:renderer",
+    "prebuild:portable": "npm run build:prepare",
     "build:portable": "run-s build:portable:real",
     "build:portable:real": "electron-builder --win portable",
+    "build:windows": "run-s build:prepare build:windows:bundle",
+    "build:windows:bundle": "electron-builder --win nsis portable",
+    "build:linux": "run-s build:prepare build:linux:bundle",
+    "build:linux:bundle": "electron-builder --linux AppImage",
+    "build:mac": "run-s build:prepare build:mac:bundle",
+    "build:mac:bundle": "electron-builder --mac dmg",
     "prune:prod": "npm prune --production",
     "build:renderer": "vite build --config renderer/vite.config.js",
     "build:electron": "electron-builder -w --dir",
@@ -89,6 +96,7 @@
       "node_modules/better-sqlite3/build/Release/*.node"
     ],
     "compression": "normal",
+    "artifactName": "STC-Toolkit-${version}-${os}-${arch}-${target}.${ext}",
     "files": [
       "dist/**",
       "preload.js",
@@ -104,15 +112,53 @@
       "!**/demo/**"
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility"
     },
     "electronLanguages": [
       "en-US",
       "ru",
       "uk"
-    ],
-    "artifactName": "STC-Toolkit-${version}-win-${arch}.exe"
+    ]
   },
   "repository": {
     "type": "git",
