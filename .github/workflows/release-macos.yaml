@@ -1,0 +1,69 @@
+name: Release macOS Build
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    env:
+      ELECTRON_VERSION: "38.3.0"
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Extract version from tag
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag must look like v1.2.3 or v1.2.3-rc.1"
+            exit 1
+          fi
+          version="${tag#v}"
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Building version $version"
+
+      - name: Set package.json version
+        run: npm version "$APP_VERSION" --no-git-tag-version
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Electron rebuild (better-sqlite3)
+        run: npx electron-rebuild -f -w better-sqlite3 -v "$ELECTRON_VERSION"
+
+      - name: Prepare application bundles
+        run: npm run build:prepare
+
+      - name: Build macOS package
+        run: npx electron-builder --mac dmg
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            dist/STC-Toolkit-*mac-*-*.dmg
+          if-no-files-found: error
+
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: |
+            dist/STC-Toolkit-*mac-*-*.dmg
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
